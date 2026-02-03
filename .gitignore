@@ -1,5 +1,8 @@
-# Build directory
+# Build directories
 build/
+simulation/build/
+simulation/install/
+simulation/log/
 
 # IDE files
 .vscode/
@@ -11,3 +14,21 @@ build/
 *.o
 *.a
 *.so
+
+# ROS 2 / Colcon build artifacts
+**/build/
+**/install/
+**/log/
+**/__pycache__/
+*.pyc
+
+# Gazebo / Ignition files
+*.log
+
+# Temporary files
+*.tmp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
