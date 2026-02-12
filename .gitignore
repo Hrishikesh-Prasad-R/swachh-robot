@@ -2,6 +2,12 @@
 build/
 install/
 log/
+**/build/
+**/install/
+**/log/
+simulation/build/
+simulation/install/
+simulation/log/
 
 # ============ Application Logs ============
 logs/
@@ -9,12 +15,19 @@ logs/
 
 # ============ Python ============
 __pycache__/
+**/__pycache__/
 *.py[cod]
+*.pyc
 *$py.class
 *.egg-info/
 *.egg
 dist/
 .eggs/
+
+# ============ Compiled Files ============
+*.o
+*.a
+*.so
 
 # ============ IDE / Editors ============
 .vscode/
