@@ -1,0 +1,466 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="simple_room">
+    <!-- Physics -->
+    <physics type="ode">
+      <real_time_update_rate>1000.0</real_time_update_rate>
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+    </physics>
+
+    <!-- Lighting -->
+    <light name="sun" type="directional">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <!-- Secondary lights for camera visibility -->
+    <light name="point_light_1" type="point">
+      <pose>0 0 3 0 0 0</pose>
+      <diffuse>0.5 0.5 0.5 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>20</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+    </light>
+
+    <light name="point_light_2" type="point">
+      <pose>9 0 3 0 0 0</pose>
+      <diffuse>0.5 0.5 0.5 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>20</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+    </light>
+
+    <!-- Ground Plane -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>100 100</size></plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>100 100</size></plane>
+          </geometry>
+          <material><ambient>0.8 0.8 0.8 1</ambient><diffuse>0.8 0.8 0.8 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== ROOM 1 (6x6m) ==================== -->
+    <!-- Each wall has a UNIQUE color for ORB-SLAM3 feature detection -->
+
+    <!-- Room 1: North Wall — DARK RED -->
+    <model name="r1_north_wall">
+      <static>true</static>
+      <pose>0 3 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>6.2 0.1 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>6.2 0.1 0.5</size></box></geometry>
+          <material><ambient>0.6 0.15 0.15 1</ambient><diffuse>0.7 0.2 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Room 1: South Wall — DARK BLUE -->
+    <model name="r1_south_wall">
+      <static>true</static>
+      <pose>0 -3 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>6.2 0.1 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>6.2 0.1 0.5</size></box></geometry>
+          <material><ambient>0.15 0.15 0.6 1</ambient><diffuse>0.2 0.2 0.7 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Room 1: West Wall — DARK GREEN -->
+    <model name="r1_west_wall">
+      <static>true</static>
+      <pose>-3 0 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 6.0 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 6.0 0.5</size></box></geometry>
+          <material><ambient>0.15 0.5 0.15 1</ambient><diffuse>0.2 0.6 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Room 1: East Wall TOP — TEAL -->
+    <model name="r1_east_wall_top">
+      <static>true</static>
+      <pose>3 2.125 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 1.75 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 1.75 0.5</size></box></geometry>
+          <material><ambient>0.1 0.5 0.5 1</ambient><diffuse>0.15 0.6 0.6 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Room 1: East Wall BOTTOM — ORANGE -->
+    <model name="r1_east_wall_bottom">
+      <static>true</static>
+      <pose>3 -2.125 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 1.75 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 1.75 0.5</size></box></geometry>
+          <material><ambient>0.7 0.4 0.1 1</ambient><diffuse>0.8 0.5 0.15 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== CORRIDOR (2.5m wide) ==================== -->
+
+    <!-- Corridor: North Wall — YELLOW -->
+    <model name="corridor_north_wall">
+      <static>true</static>
+      <pose>4.5 1.25 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>3.0 0.1 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>3.0 0.1 0.5</size></box></geometry>
+          <material><ambient>0.7 0.65 0.1 1</ambient><diffuse>0.85 0.8 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Corridor: South Wall — PURPLE -->
+    <model name="corridor_south_wall">
+      <static>true</static>
+      <pose>4.5 -1.25 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>3.0 0.1 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>3.0 0.1 0.5</size></box></geometry>
+          <material><ambient>0.45 0.1 0.55 1</ambient><diffuse>0.55 0.15 0.65 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== ROOM 2 (6x6m) ==================== -->
+
+    <!-- Room 2: North Wall — SALMON -->
+    <model name="r2_north_wall">
+      <static>true</static>
+      <pose>9 3 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>6.2 0.1 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>6.2 0.1 0.5</size></box></geometry>
+          <material><ambient>0.7 0.35 0.3 1</ambient><diffuse>0.85 0.45 0.4 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Room 2: South Wall — STEEL BLUE -->
+    <model name="r2_south_wall">
+      <static>true</static>
+      <pose>9 -3 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>6.2 0.1 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>6.2 0.1 0.5</size></box></geometry>
+          <material><ambient>0.25 0.4 0.55 1</ambient><diffuse>0.35 0.5 0.65 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Room 2: East Wall — BROWN -->
+    <model name="r2_east_wall">
+      <static>true</static>
+      <pose>12 0 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 6.0 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 6.0 0.5</size></box></geometry>
+          <material><ambient>0.45 0.3 0.15 1</ambient><diffuse>0.55 0.35 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Room 2: West Wall TOP — OLIVE -->
+    <model name="r2_west_wall_top">
+      <static>true</static>
+      <pose>6 2.125 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 1.75 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 1.75 0.5</size></box></geometry>
+          <material><ambient>0.45 0.45 0.15 1</ambient><diffuse>0.55 0.55 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Room 2: West Wall BOTTOM — DARK CYAN -->
+    <model name="r2_west_wall_bottom">
+      <static>true</static>
+      <pose>6 -2.125 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 1.75 0.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 1.75 0.5</size></box></geometry>
+          <material><ambient>0.1 0.4 0.4 1</ambient><diffuse>0.15 0.5 0.5 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== OBSTACLES (ROOM 1) ==================== -->
+
+    <model name="obs_1">
+      <static>true</static>
+      <pose>1.5 1.5 0.15 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.5 0.5 0.3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.5 0.5 0.3</size></box></geometry>
+          <material><ambient>0.8 0.2 0.2 1</ambient><diffuse>0.8 0.2 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="obs_2">
+      <static>true</static>
+      <pose>-1.5 1.0 0.125 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.4 0.6 0.25</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.4 0.6 0.25</size></box></geometry>
+          <material><ambient>0.8 0.5 0.1 1</ambient><diffuse>0.8 0.5 0.1 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="obs_3">
+      <static>true</static>
+      <pose>1.0 -1.5 0.175 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.6 0.4 0.35</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.6 0.4 0.35</size></box></geometry>
+          <material><ambient>0.2 0.7 0.2 1</ambient><diffuse>0.2 0.7 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="obs_4">
+      <static>true</static>
+      <pose>-1.0 -1.0 0.1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.3 0.3 0.2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.3 0.3 0.2</size></box></geometry>
+          <material><ambient>0.7 0.7 0.2 1</ambient><diffuse>0.7 0.7 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== OBSTACLES (ROOM 2) ==================== -->
+
+    <model name="obs_5">
+      <static>true</static>
+      <pose>7.5 1.0 0.15 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.5 0.5 0.3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.5 0.5 0.3</size></box></geometry>
+          <material><ambient>0.8 0.2 0.2 1</ambient><diffuse>0.8 0.2 0.2 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="obs_6">
+      <static>true</static>
+      <pose>10.5 -1.0 0.125 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.4 0.4 0.25</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.4 0.4 0.25</size></box></geometry>
+          <material><ambient>0.2 0.2 0.8 1</ambient><diffuse>0.2 0.2 0.8 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="obs_7">
+      <static>true</static>
+      <pose>8.5 -1.5 0.15 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.6 0.3 0.3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.6 0.3 0.3</size></box></geometry>
+          <material><ambient>0.7 0.2 0.7 1</ambient><diffuse>0.7 0.2 0.7 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ==================== VISUAL FEATURE MARKERS ==================== -->
+    <!-- Poster panels on walls for ORB-SLAM3 keypoint detection -->
+
+    <model name="poster_r1_n">
+      <static>true</static>
+      <pose>-0.8 2.94 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.8 0.01 0.35</size></box></geometry>
+          <material><ambient>0.9 0.9 0.1 1</ambient><diffuse>0.95 0.95 0.15 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="poster_r1_n2">
+      <static>true</static>
+      <pose>1.2 2.94 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.6 0.01 0.25</size></box></geometry>
+          <material><ambient>0.1 0.8 0.9 1</ambient><diffuse>0.15 0.85 0.95 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="poster_r1_s">
+      <static>true</static>
+      <pose>0.5 -2.94 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.7 0.01 0.3</size></box></geometry>
+          <material><ambient>0.9 0.5 0.1 1</ambient><diffuse>0.95 0.55 0.15 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="poster_r1_w">
+      <static>true</static>
+      <pose>-2.94 0.8 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.01 0.9 0.35</size></box></geometry>
+          <material><ambient>0.9 0.2 0.8 1</ambient><diffuse>0.95 0.25 0.85 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="poster_r1_w2">
+      <static>true</static>
+      <pose>-2.94 -1.2 0.2 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.01 0.5 0.2</size></box></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>0.98 0.98 0.98 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="poster_corr_n">
+      <static>true</static>
+      <pose>4.5 1.19 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>1.0 0.01 0.35</size></box></geometry>
+          <material><ambient>0.2 0.2 0.9 1</ambient><diffuse>0.25 0.25 0.95 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="poster_corr_s">
+      <static>true</static>
+      <pose>4.2 -1.19 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.8 0.01 0.3</size></box></geometry>
+          <material><ambient>0.9 0.1 0.3 1</ambient><diffuse>0.95 0.15 0.35 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="poster_r2_n">
+      <static>true</static>
+      <pose>8.5 2.94 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.9 0.01 0.3</size></box></geometry>
+          <material><ambient>0.3 0.8 0.3 1</ambient><diffuse>0.35 0.85 0.35 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="poster_r2_e">
+      <static>true</static>
+      <pose>11.94 0.5 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.01 0.7 0.35</size></box></geometry>
+          <material><ambient>0.1 0.6 0.9 1</ambient><diffuse>0.15 0.65 0.95 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="poster_r2_s">
+      <static>true</static>
+      <pose>9.5 -2.94 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.6 0.01 0.25</size></box></geometry>
+          <material><ambient>0.9 0.8 0.1 1</ambient><diffuse>0.95 0.85 0.15 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

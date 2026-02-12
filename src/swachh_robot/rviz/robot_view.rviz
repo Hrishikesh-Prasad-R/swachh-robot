@@ -1,0 +1,56 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Enabled: true
+      Name: Grid
+      Cell Size: 1
+      Line Style:
+        Value: Lines
+      Color: 100; 100; 100
+      Plane Cell Count: 10
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Walls
+      Topic:
+        Value: /walls
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Obstacles
+      Topic:
+        Value: /obstacles
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Robot
+      Topic:
+        Value: /robot_visual
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: VisionCone
+      Topic:
+        Value: /robot_vision
+    - Class: rviz_default_plugins/LaserScan
+      Enabled: true
+      Name: LaserScan
+      Topic:
+        Value: /scan
+      Size (m): 0.08
+      Style: Spheres
+      Color Transformer: FlatColor
+      Color: 255; 255; 0
+      Alpha: 1
+  Global Options:
+    Fixed Frame: odom
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+  Views:
+    Current:
+      Class: rviz_default_plugins/TopDownOrtho
+      Scale: 80
+      X: 0
+      Y: 0

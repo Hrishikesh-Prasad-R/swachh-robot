@@ -1,0 +1,43 @@
+# ============ ROS 2 / Colcon Build ============
+build/
+install/
+log/
+
+# ============ Application Logs ============
+logs/
+*.log
+
+# ============ Python ============
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+.eggs/
+
+# ============ IDE / Editors ============
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
+
+# ============ OS ============
+.DS_Store
+Thumbs.db
+*.tmp
+
+# ============ Gazebo ============
+*.world.bak
+
+# ============ ROS bags ============
+*.bag
+*.db3
+rosbag2_*/
+
+# ============ Gemini Agent Artifacts ============
+.gemini/
