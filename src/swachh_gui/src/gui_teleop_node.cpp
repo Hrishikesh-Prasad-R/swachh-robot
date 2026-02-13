@@ -38,7 +38,6 @@ static const char* SPEED_NAMES[NUM_SPEED_LEVELS] = {
 };
 static constexpr double TURN_SPEED    = 0.5;    // rad/s
 static constexpr int    MEDIAN_SIZE   = 3;
-static constexpr int    MOVE_PULSE_MS = 500;    // movement pulse duration
 
 // ============== ROS NODE ==============
 
@@ -170,7 +169,7 @@ private:
 // ============== GTK4 APPLICATION ==============
 
 static std::shared_ptr<GuiTeleopNode> g_node;
-static guint g_move_timer_id = 0;  // auto-stop timer
+static bool g_moving = false;  // true while any movement button is held
 
 struct SystemState {
     bool vacuum_active = false;
@@ -288,30 +287,19 @@ static gboolean battery_tick(gpointer) {
     return TRUE;
 }
 
-// ---- Auto-stop timer: fires after MOVE_PULSE_MS ----
-static gboolean auto_stop_tick(gpointer) {
+// ---- Movement: press = start, release = stop ----
+
+// Generic release handler: stop the robot
+static void on_move_release(GtkGestureClick*, int, double, double, gpointer) {
+    g_moving = false;
     g_node->publish_cmd(0.0, 0.0);
     g_state.status = "Stopped";
+    RCLCPP_INFO(g_node->get_logger(), "RELEASED dist=%.2fm", g_node->get_total_distance());
     update_status();
-    RCLCPP_INFO(g_node->get_logger(), "AUTO-STOP dist=%.2fm", g_node->get_total_distance());
-    g_move_timer_id = 0;
-    return FALSE;  // one-shot, don't repeat
 }
 
-// Helper: start a movement pulse. Cancels any existing timer.
-static void start_move_pulse(double linear, double angular) {
-    // Cancel any pending auto-stop
-    if (g_move_timer_id > 0) {
-        g_source_remove(g_move_timer_id);
-        g_move_timer_id = 0;
-    }
-    g_node->publish_cmd(linear, angular);
-    // Schedule auto-stop
-    g_move_timer_id = g_timeout_add(MOVE_PULSE_MS, auto_stop_tick, NULL);
-}
-
-// ---- Movement callbacks ----
-static void on_forward(GtkWidget*, gpointer) {
+// Press handlers for each direction
+static void on_forward_press(GtkGestureClick*, int, double, double, gpointer) {
     if (g_state.emergency_stop || g_state.autonomous_mode) return;
     double eff = g_node->get_effective_speed();
     if (eff <= 0.0) {
@@ -319,45 +307,45 @@ static void on_forward(GtkWidget*, gpointer) {
         update_status();
         return;
     }
-    start_move_pulse(eff, 0.0);
-    g_state.status = "Moving Forward";
+    g_moving = true;
+    g_node->publish_cmd(eff, 0.0);
+    g_state.status = "Moving Forward (hold)";
     RCLCPP_INFO(g_node->get_logger(), "FORWARD speed=%.2f dist=%.2fm obstacle=%.2fm",
                 eff, g_node->get_total_distance(), g_node->get_collision_dist());
     update_status();
 }
 
-static void on_backward(GtkWidget*, gpointer) {
+static void on_backward_press(GtkGestureClick*, int, double, double, gpointer) {
     if (g_state.emergency_stop || g_state.autonomous_mode) return;
-    start_move_pulse(-SPEED_LEVELS[g_node->speed_level_], 0.0);
-    g_state.status = "Moving Backward";
+    g_moving = true;
+    g_node->publish_cmd(-SPEED_LEVELS[g_node->speed_level_], 0.0);
+    g_state.status = "Moving Backward (hold)";
     RCLCPP_INFO(g_node->get_logger(), "BACKWARD speed=%.2f dist=%.2fm",
                 SPEED_LEVELS[g_node->speed_level_], g_node->get_total_distance());
     update_status();
 }
 
-static void on_left(GtkWidget*, gpointer) {
+static void on_left_press(GtkGestureClick*, int, double, double, gpointer) {
     if (g_state.emergency_stop || g_state.autonomous_mode) return;
-    start_move_pulse(0.0, TURN_SPEED);
-    g_state.status = "Turning Left";
+    g_moving = true;
+    g_node->publish_cmd(0.0, TURN_SPEED);
+    g_state.status = "Turning Left (hold)";
     RCLCPP_INFO(g_node->get_logger(), "LEFT turn dist=%.2fm", g_node->get_total_distance());
     update_status();
 }
 
-static void on_right(GtkWidget*, gpointer) {
+static void on_right_press(GtkGestureClick*, int, double, double, gpointer) {
     if (g_state.emergency_stop || g_state.autonomous_mode) return;
-    start_move_pulse(0.0, -TURN_SPEED);
-    g_state.status = "Turning Right";
+    g_moving = true;
+    g_node->publish_cmd(0.0, -TURN_SPEED);
+    g_state.status = "Turning Right (hold)";
     RCLCPP_INFO(g_node->get_logger(), "RIGHT turn dist=%.2fm", g_node->get_total_distance());
     update_status();
 }
 
 static void on_stop(GtkWidget*, gpointer) {
     if (g_state.emergency_stop) return;
-    // Cancel pending auto-stop
-    if (g_move_timer_id > 0) {
-        g_source_remove(g_move_timer_id);
-        g_move_timer_id = 0;
-    }
+    g_moving = false;
     g_node->publish_cmd(0.0, 0.0);
     g_state.status = "Stopped";
     RCLCPP_INFO(g_node->get_logger(), "STOP dist=%.2fm", g_node->get_total_distance());
@@ -372,10 +360,7 @@ static void on_estop(GtkWidget*, gpointer) {
     g_state.wiper_active = false;
     g_state.uv_active = false;
     g_state.autonomous_mode = false;
-    if (g_move_timer_id > 0) {
-        g_source_remove(g_move_timer_id);
-        g_move_timer_id = 0;
-    }
+    g_moving = false;
     g_node->publish_cmd(0.0, 0.0);
     g_state.status = "EMERGENCY STOP";
     RCLCPP_WARN(g_node->get_logger(), "EMERGENCY STOP ACTIVATED");
@@ -641,8 +626,8 @@ static void activate(GtkApplication *app, gpointer) {
     // Highlight the default speed button
     update_speed_buttons();
 
-    // ---- Movement Controls ----
-    GtkWidget *move_frame = gtk_frame_new("Movement Controls (click = 0.5s pulse)");
+    // ---- Movement Controls (hold to move, release to stop) ----
+    GtkWidget *move_frame = gtk_frame_new("Movement Controls (hold to move)");
     gtk_box_append(GTK_BOX(main_box), move_frame);
 
     GtkWidget *move_grid = gtk_grid_new();
@@ -655,14 +640,22 @@ static void activate(GtkApplication *app, gpointer) {
     gtk_widget_set_halign(move_grid, GTK_ALIGN_CENTER);
     gtk_frame_set_child(GTK_FRAME(move_frame), move_grid);
 
+    // Helper lambda to attach press/release gesture to a button
+    auto attach_move_gesture = [](GtkWidget *btn, GCallback press_cb) {
+        GtkGesture *gesture = gtk_gesture_click_new();
+        g_signal_connect(gesture, "pressed", press_cb, NULL);
+        g_signal_connect(gesture, "released", G_CALLBACK(on_move_release), NULL);
+        gtk_widget_add_controller(btn, GTK_EVENT_CONTROLLER(gesture));
+    };
+
     GtkWidget *fwd = gtk_button_new_with_label("Forward");
     gtk_widget_set_size_request(fwd, 130, 50);
-    g_signal_connect(fwd, "clicked", G_CALLBACK(on_forward), NULL);
+    attach_move_gesture(fwd, G_CALLBACK(on_forward_press));
     gtk_grid_attach(GTK_GRID(move_grid), fwd, 1, 0, 1, 1);
 
     GtkWidget *left = gtk_button_new_with_label("Left");
     gtk_widget_set_size_request(left, 130, 50);
-    g_signal_connect(left, "clicked", G_CALLBACK(on_left), NULL);
+    attach_move_gesture(left, G_CALLBACK(on_left_press));
     gtk_grid_attach(GTK_GRID(move_grid), left, 0, 1, 1, 1);
 
     GtkWidget *stop = gtk_button_new_with_label("STOP");
@@ -673,12 +666,12 @@ static void activate(GtkApplication *app, gpointer) {
 
     GtkWidget *right = gtk_button_new_with_label("Right");
     gtk_widget_set_size_request(right, 130, 50);
-    g_signal_connect(right, "clicked", G_CALLBACK(on_right), NULL);
+    attach_move_gesture(right, G_CALLBACK(on_right_press));
     gtk_grid_attach(GTK_GRID(move_grid), right, 2, 1, 1, 1);
 
     GtkWidget *bwd = gtk_button_new_with_label("Backward");
     gtk_widget_set_size_request(bwd, 130, 50);
-    g_signal_connect(bwd, "clicked", G_CALLBACK(on_backward), NULL);
+    attach_move_gesture(bwd, G_CALLBACK(on_backward_press));
     gtk_grid_attach(GTK_GRID(move_grid), bwd, 1, 2, 1, 1);
 
     // Show window
