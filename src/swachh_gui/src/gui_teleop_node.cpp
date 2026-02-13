@@ -169,7 +169,10 @@ private:
 // ============== GTK4 APPLICATION ==============
 
 static std::shared_ptr<GuiTeleopNode> g_node;
-static bool g_moving = false;  // true while any movement button is held
+
+// Movement direction state machine
+enum MoveDir { DIR_NONE = 0, DIR_FWD, DIR_BWD, DIR_LEFT, DIR_RIGHT };
+static MoveDir g_move_dir = DIR_NONE;
 
 struct SystemState {
     bool vacuum_active = false;
@@ -254,24 +257,39 @@ static void update_telemetry() {
     gtk_label_set_markup(GTK_LABEL(g_w.speed_label), buf);
 }
 
-// ---- Timer: spin ROS + update GUI ----
+// ---- Timer: spin ROS + update GUI + continuous velocity publish ----
 static gboolean ros_spin_tick(gpointer) {
-    if (rclcpp::ok()) {
-        rclcpp::spin_some(g_node);
-        update_telemetry();
+    if (!rclcpp::ok()) return TRUE;
 
-        // Continuous collision enforcement while moving forward
-        if (g_node->current_linear_ > 0.0 && !g_state.emergency_stop) {
-            double eff = g_node->get_effective_speed();
-            if (eff < g_node->current_linear_) {
-                g_node->publish_cmd(eff, g_node->current_angular_);
+    rclcpp::spin_some(g_node);
+    update_telemetry();
+
+    // Continuously publish velocity based on current direction
+    if (!g_state.emergency_stop && g_move_dir != DIR_NONE) {
+        switch (g_move_dir) {
+            case DIR_FWD: {
+                double eff = g_node->get_effective_speed();
+                g_node->publish_cmd(eff, 0.0);
                 if (eff <= 0.0) {
                     g_state.status = "BLOCKED - Wall too close";
                     update_status();
                 }
+                break;
             }
+            case DIR_BWD:
+                g_node->publish_cmd(-SPEED_LEVELS[g_node->speed_level_], 0.0);
+                break;
+            case DIR_LEFT:
+                g_node->publish_cmd(0.0, TURN_SPEED);
+                break;
+            case DIR_RIGHT:
+                g_node->publish_cmd(0.0, -TURN_SPEED);
+                break;
+            default:
+                break;
         }
     }
+
     return TRUE;
 }
 
@@ -287,69 +305,41 @@ static gboolean battery_tick(gpointer) {
     return TRUE;
 }
 
-// ---- Movement: press = start, release = stop ----
+// ---- Movement: direction state machine ----
 
-// Generic release handler: stop the robot
-static void on_move_release(GtkGestureClick*, int, double, double, gpointer) {
-    g_moving = false;
+static void stop_movement() {
+    g_move_dir = DIR_NONE;
     g_node->publish_cmd(0.0, 0.0);
     g_state.status = "Stopped";
+    update_status();
+}
+
+// Press handler: sets direction (data = MoveDir enum value)
+static void on_move_pressed(GtkGestureClick*, int, double, double, gpointer data) {
+    if (g_state.emergency_stop || g_state.autonomous_mode) return;
+    MoveDir dir = static_cast<MoveDir>(GPOINTER_TO_INT(data));
+    g_move_dir = dir;
+    const char* names[] = {"", "Forward", "Backward", "Left", "Right"};
+    g_state.status = std::string("Moving ") + names[dir];
+    RCLCPP_INFO(g_node->get_logger(), "%s pressed dist=%.2fm", names[dir], g_node->get_total_distance());
+    update_status();
+}
+
+// Release handler: stop
+static void on_move_released(GtkGestureClick*, int, double, double, gpointer) {
+    stop_movement();
     RCLCPP_INFO(g_node->get_logger(), "RELEASED dist=%.2fm", g_node->get_total_distance());
-    update_status();
 }
 
-// Press handlers for each direction
-static void on_forward_press(GtkGestureClick*, int, double, double, gpointer) {
-    if (g_state.emergency_stop || g_state.autonomous_mode) return;
-    double eff = g_node->get_effective_speed();
-    if (eff <= 0.0) {
-        g_state.status = "BLOCKED - Wall too close";
-        update_status();
-        return;
-    }
-    g_moving = true;
-    g_node->publish_cmd(eff, 0.0);
-    g_state.status = "Moving Forward (hold)";
-    RCLCPP_INFO(g_node->get_logger(), "FORWARD speed=%.2f dist=%.2fm obstacle=%.2fm",
-                eff, g_node->get_total_distance(), g_node->get_collision_dist());
-    update_status();
-}
-
-static void on_backward_press(GtkGestureClick*, int, double, double, gpointer) {
-    if (g_state.emergency_stop || g_state.autonomous_mode) return;
-    g_moving = true;
-    g_node->publish_cmd(-SPEED_LEVELS[g_node->speed_level_], 0.0);
-    g_state.status = "Moving Backward (hold)";
-    RCLCPP_INFO(g_node->get_logger(), "BACKWARD speed=%.2f dist=%.2fm",
-                SPEED_LEVELS[g_node->speed_level_], g_node->get_total_distance());
-    update_status();
-}
-
-static void on_left_press(GtkGestureClick*, int, double, double, gpointer) {
-    if (g_state.emergency_stop || g_state.autonomous_mode) return;
-    g_moving = true;
-    g_node->publish_cmd(0.0, TURN_SPEED);
-    g_state.status = "Turning Left (hold)";
-    RCLCPP_INFO(g_node->get_logger(), "LEFT turn dist=%.2fm", g_node->get_total_distance());
-    update_status();
-}
-
-static void on_right_press(GtkGestureClick*, int, double, double, gpointer) {
-    if (g_state.emergency_stop || g_state.autonomous_mode) return;
-    g_moving = true;
-    g_node->publish_cmd(0.0, -TURN_SPEED);
-    g_state.status = "Turning Right (hold)";
-    RCLCPP_INFO(g_node->get_logger(), "RIGHT turn dist=%.2fm", g_node->get_total_distance());
-    update_status();
+// Cancelled handler: also stop (e.g. mouse leaves button)
+static void on_move_cancelled(GtkGestureClick*, gpointer) {
+    stop_movement();
 }
 
 static void on_stop(GtkWidget*, gpointer) {
     if (g_state.emergency_stop) return;
-    g_moving = false;
-    g_node->publish_cmd(0.0, 0.0);
-    g_state.status = "Stopped";
+    stop_movement();
     RCLCPP_INFO(g_node->get_logger(), "STOP dist=%.2fm", g_node->get_total_distance());
-    update_status();
 }
 
 // ---- Emergency stop ----
@@ -360,7 +350,7 @@ static void on_estop(GtkWidget*, gpointer) {
     g_state.wiper_active = false;
     g_state.uv_active = false;
     g_state.autonomous_mode = false;
-    g_moving = false;
+    g_move_dir = DIR_NONE;
     g_node->publish_cmd(0.0, 0.0);
     g_state.status = "EMERGENCY STOP";
     RCLCPP_WARN(g_node->get_logger(), "EMERGENCY STOP ACTIVATED");
@@ -640,22 +630,29 @@ static void activate(GtkApplication *app, gpointer) {
     gtk_widget_set_halign(move_grid, GTK_ALIGN_CENTER);
     gtk_frame_set_child(GTK_FRAME(move_frame), move_grid);
 
-    // Helper lambda to attach press/release gesture to a button
-    auto attach_move_gesture = [](GtkWidget *btn, GCallback press_cb) {
+    // Helper: attach press/release gesture in CAPTURE phase to avoid
+    // conflict with GtkButton's internal gesture handler
+    auto attach_move = [](GtkWidget *btn, MoveDir dir) {
         GtkGesture *gesture = gtk_gesture_click_new();
-        g_signal_connect(gesture, "pressed", press_cb, NULL);
-        g_signal_connect(gesture, "released", G_CALLBACK(on_move_release), NULL);
+        gtk_event_controller_set_propagation_phase(
+            GTK_EVENT_CONTROLLER(gesture), GTK_PHASE_CAPTURE);
+        g_signal_connect(gesture, "pressed",
+                         G_CALLBACK(on_move_pressed), GINT_TO_POINTER(dir));
+        g_signal_connect(gesture, "released",
+                         G_CALLBACK(on_move_released), NULL);
+        g_signal_connect(gesture, "cancelled",
+                         G_CALLBACK(on_move_cancelled), NULL);
         gtk_widget_add_controller(btn, GTK_EVENT_CONTROLLER(gesture));
     };
 
     GtkWidget *fwd = gtk_button_new_with_label("Forward");
     gtk_widget_set_size_request(fwd, 130, 50);
-    attach_move_gesture(fwd, G_CALLBACK(on_forward_press));
+    attach_move(fwd, DIR_FWD);
     gtk_grid_attach(GTK_GRID(move_grid), fwd, 1, 0, 1, 1);
 
     GtkWidget *left = gtk_button_new_with_label("Left");
     gtk_widget_set_size_request(left, 130, 50);
-    attach_move_gesture(left, G_CALLBACK(on_left_press));
+    attach_move(left, DIR_LEFT);
     gtk_grid_attach(GTK_GRID(move_grid), left, 0, 1, 1, 1);
 
     GtkWidget *stop = gtk_button_new_with_label("STOP");
@@ -666,12 +663,12 @@ static void activate(GtkApplication *app, gpointer) {
 
     GtkWidget *right = gtk_button_new_with_label("Right");
     gtk_widget_set_size_request(right, 130, 50);
-    attach_move_gesture(right, G_CALLBACK(on_right_press));
+    attach_move(right, DIR_RIGHT);
     gtk_grid_attach(GTK_GRID(move_grid), right, 2, 1, 1, 1);
 
     GtkWidget *bwd = gtk_button_new_with_label("Backward");
     gtk_widget_set_size_request(bwd, 130, 50);
-    attach_move_gesture(bwd, G_CALLBACK(on_backward_press));
+    attach_move(bwd, DIR_BWD);
     gtk_grid_attach(GTK_GRID(move_grid), bwd, 1, 2, 1, 1);
 
     // Show window
